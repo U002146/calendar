@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>預約派車服務</title>
+    <title>GOOGLE預約日曆</title>
     <!-- Tailwind CSS (樣式庫) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- LIFF SDK -->
@@ -40,7 +40,7 @@
         
         <!-- 標題區 -->
         <div class="bg-[#06c755] p-4 text-white text-center shadow-md relative">
-            <h1 class="text-xl font-bold tracking-wide"><i class="fa-solid fa-taxi mr-2"></i>預約派車</h1>
+            <h1 class="text-xl font-bold tracking-wide"><i class="fa-solid fa-taxi mr-2"></i>歡迎預約</h1>
             <p class="text-xs opacity-80 mt-1" id="user-status">讀取資料中...</p>
         </div>
 
@@ -92,7 +92,7 @@
 
         <!-- 頁尾 -->
         <div class="bg-gray-50 p-3 text-center text-xs text-gray-400 border-t">
-            花蓮在地車隊 • 安全可靠
+            GOOGLE日歷:預約排程 
         </div>
     </div>
 
@@ -334,7 +334,7 @@
                 const dateObj = new Date(date);
                 const dateStr = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
 
-                const messageText = `【預約叫車單】\n📅 日期：${dateStr}\n⏰ 時間：${time}\n📍 地點：${location}\n📞 電話：${phone || '無'}\n\n系統已收到您的請求，司機確認中！`;
+                const messageText = `【預約成功】\n📅 日期：${dateStr}\n⏰ 時間：${time}\n📍 地點：${location}\n📞 電話：${phone || '無'}\n\n系統已寫入GOOGLE預約日曆,感謝您的預約！`;
 
                 // 2. 透過 LIFF 發送訊息到聊天室
                 if (liff.isInClient()) {
