@@ -2,373 +2,252 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GOOGLE預約日曆</title>
-    <!-- Tailwind CSS (樣式庫) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- LIFF SDK -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>預約派車</title>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <!-- FontAwesome (圖示) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- SweetAlert2 (漂亮的彈出視窗) -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <style>
-        /* 針對手機優化的樣式微調 */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f3f4f6;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .btn-press:active {
-            transform: scale(0.98);
-        }
-        /* 隱藏捲軸但保持功能 */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
+        :root { --primary: #06c755; --bg: #f5f5f5; --text: #333; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: var(--bg); padding: 20px; color: var(--text); }
+        
+        /* 容器 */
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        
+        /* 表單列 */
+        .row { margin-bottom: 20px; }
+        .row-flex { display: flex; gap: 10px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 1.1rem; }
+        
+        /* 輸入框優化 */
+        input, select, button { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+        input:focus { border-color: var(--primary); outline: none; }
+        
+        /* 日期時間 */
+        .date-input { flex: 2; }
+        .time-input { flex: 1; }
+
+        /* 地點列 */
+        .location-group { display: flex; gap: 8px; }
+        .btn-map { background: #eee; color: #333; border: none; width: auto; white-space: nowrap; cursor: pointer; }
+        
+        /* 聯絡電話提示 */
+        .hint { font-size: 0.85rem; color: #888; margin-top: 4px; }
+
+        /* 送出按鈕 */
+        .btn-submit { background: var(--primary); color: white; font-size: 1.2rem; font-weight: bold; border: none; margin-top: 10px; cursor: pointer; }
+        .btn-submit:disabled { background: #ccc; }
+
+        /* 模態視窗 (Modal) */
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: flex-end; }
+        .modal-content { background: white; width: 100%; border-radius: 20px 20px 0 0; padding: 20px; animation: slideUp 0.3s; max-height: 80vh; overflow-y: auto; }
+        .tag-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+        .tag { padding: 8px 16px; background: #f0f0f0; border-radius: 20px; font-size: 0.95rem; cursor: pointer; border: 1px solid transparent; }
+        .tag.saved { background: #e3f2fd; color: #0d47a1; border-color: #90caf9; }
+        .tag:active { background: #ddd; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .close-btn { font-size: 1.5rem; background: none; border: none; width: auto; padding: 0; }
+
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center pt-4 pb-10 px-4">
+<body>
 
-    <!-- 主容器 -->
-    <div class="w-full max-w-md bg-white rounded-2xl shadow-lg overflow-hidden">
-        
-        <!-- 標題區 -->
-        <div class="bg-[#06c755] p-4 text-white text-center shadow-md relative">
-            <h1 class="text-xl font-bold tracking-wide"><i class="fa-solid fa-taxi mr-2"></i>歡迎預約</h1>
-            <p class="text-xs opacity-80 mt-1" id="user-status">讀取資料中...</p>
+<div class="container">
+    <h2 style="text-align: center; margin-top: 0;">預約用車</h2>
+    
+    <div class="row row-flex">
+        <div class="date-input">
+            <label>日期 (月/日)</label>
+            <input type="date" id="dateData">
         </div>
-
-        <!-- 表單區 -->
-        <div class="p-5 space-y-6">
-
-            <!-- 第一列：日期與時間 -->
-            <div class="grid grid-cols-2 gap-4">
-                <div class="flex flex-col">
-                    <label class="text-sm font-bold text-gray-600 mb-1"><i class="fa-regular fa-calendar mr-1"></i>日期</label>
-                    <input type="date" id="dateInput" class="w-full p-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none text-gray-800 text-lg">
-                </div>
-                <div class="flex flex-col">
-                    <label class="text-sm font-bold text-gray-600 mb-1"><i class="fa-regular fa-clock mr-1"></i>時間</label>
-                    <input type="time" id="timeInput" class="w-full p-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none text-gray-800 text-lg">
-                </div>
-            </div>
-
-            <!-- 第二列：上車地點 (含按鈕) -->
-            <div class="flex flex-col relative">
-                <label class="text-sm font-bold text-gray-600 mb-1"><i class="fa-solid fa-map-pin mr-1"></i>上車地點</label>
-                <div class="flex gap-2">
-                    <input type="text" id="locationInput" placeholder="請輸入或選擇地點" class="flex-1 p-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none text-gray-800 text-lg">
-                    <button onclick="openLocationModal()" class="bg-blue-500 text-white px-4 rounded-xl shadow active:bg-blue-600 transition btn-press flex flex-col items-center justify-center min-w-[70px]">
-                        <i class="fa-solid fa-map-location-dot text-xl mb-1"></i>
-                        <span class="text-xs">選地點</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- 第三列：聯絡電話 -->
-            <div class="flex flex-col">
-                <label class="text-sm font-bold text-gray-600 mb-1">
-                    <i class="fa-solid fa-phone mr-1"></i>聯絡電話
-                    <span class="text-xs font-normal text-orange-500 ml-1">(幫別人叫車時必填)</span>
-                </label>
-                <input type="tel" id="phoneInput" placeholder="09xx-xxx-xxx" class="w-full p-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none text-gray-800 text-lg">
-            </div>
-
-            <!-- 錯誤訊息提示區 -->
-            <div id="errorMsg" class="hidden text-red-500 text-sm text-center font-bold bg-red-50 p-2 rounded-lg border border-red-200"></div>
-
-            <!-- 送出按鈕 -->
-            <button id="submitBtn" onclick="submitBooking()" class="w-full bg-[#06c755] hover:bg-[#05b34c] text-white font-bold py-4 rounded-xl text-xl shadow-md transition transform btn-press flex justify-center items-center gap-2">
-                <span>確認預約</span>
-                <i class="fa-solid fa-paper-plane"></i>
-            </button>
-        </div>
-
-        <!-- 頁尾 -->
-        <div class="bg-gray-50 p-3 text-center text-xs text-gray-400 border-t">
-            GOOGLE日歷:預約排程 
+        <div class="time-input">
+            <label>時間</label>
+            <input type="time" id="timeData">
         </div>
     </div>
 
-    <!-- 地點選擇 Modal (彈出視窗) -->
-    <div id="locationModal" class="fixed inset-0 z-50 hidden">
-        <!-- 背景遮罩 -->
-        <div class="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity" onclick="closeLocationModal()"></div>
-        
-        <!-- 內容卡片 -->
-        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-5 shadow-2xl transform transition-transform duration-300 ease-out translate-y-full" id="modalContent">
-            
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 class="text-lg font-bold text-gray-700">選擇常用地點</h3>
-                <button onclick="closeLocationModal()" class="text-gray-400 hover:text-gray-600 p-2">
-                    <i class="fa-solid fa-xmark text-2xl"></i>
-                </button>
-            </div>
-
-            <!-- 常用地址區 (可編輯) -->
-            <div class="grid grid-cols-2 gap-3 mb-6">
-                <!-- 地址 A -->
-                <div class="relative group">
-                    <button onclick="selectCustomLocation('A')" class="w-full bg-orange-50 border-2 border-orange-200 p-3 rounded-xl text-left hover:bg-orange-100 transition active:scale-95">
-                        <div class="flex justify-between items-start">
-                            <span class="font-bold text-orange-800"><i class="fa-solid fa-house mr-1"></i>常用 A</span>
-                            <span onclick="event.stopPropagation(); editCustomLocation('A')" class="text-xs bg-white px-2 py-1 rounded border border-orange-200 text-gray-500 active:bg-gray-100"><i class="fa-solid fa-pen"></i></span>
-                        </div>
-                        <p id="label-loc-A" class="text-sm text-gray-600 mt-1 truncate">點擊設定地址</p>
-                    </button>
-                </div>
-
-                <!-- 地址 B -->
-                <div class="relative group">
-                    <button onclick="selectCustomLocation('B')" class="w-full bg-blue-50 border-2 border-blue-200 p-3 rounded-xl text-left hover:bg-blue-100 transition active:scale-95">
-                        <div class="flex justify-between items-start">
-                            <span class="font-bold text-blue-800"><i class="fa-solid fa-briefcase mr-1"></i>常用 B</span>
-                            <span onclick="event.stopPropagation(); editCustomLocation('B')" class="text-xs bg-white px-2 py-1 rounded border border-blue-200 text-gray-500 active:bg-gray-100"><i class="fa-solid fa-pen"></i></span>
-                        </div>
-                        <p id="label-loc-B" class="text-sm text-gray-600 mt-1 truncate">點擊設定地址</p>
-                    </button>
-                </div>
-            </div>
-
-            <h4 class="text-sm font-bold text-gray-500 mb-3 ml-1">花蓮熱門地標</h4>
-            
-            <!-- 花蓮地標清單 (滾動區) -->
-            <div class="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto no-scrollbar pb-10">
-                <button onclick="selectPreset('花蓮火車站 (前站)')" class="p-3 bg-gray-50 rounded-lg text-left text-sm text-gray-700 hover:bg-gray-100 border border-gray-200"><i class="fa-solid fa-train mr-2 text-gray-400"></i>花蓮火車站 (前站)</button>
-                <button onclick="selectPreset('花蓮火車站 (後站)')" class="p-3 bg-gray-50 rounded-lg text-left text-sm text-gray-700 hover:bg-gray-100 border border-gray-200"><i class="fa-solid fa-train mr-2 text-gray-400"></i>花蓮火車站 (後站)</button>
-                <button onclick="selectPreset('花蓮慈濟醫院')" class="p-3 bg-gray-50 rounded-lg text-left text-sm text-gray-700 hover:bg-gray-100 border border-gray-200"><i class="fa-solid fa-hospital mr-2 text-red-400"></i>慈濟醫院</button>
-                <button onclick="selectPreset('花蓮門諾醫院')" class="p-3 bg-gray-50 rounded-lg text-left text-sm text-gray-700 hover:bg-gray-100 border border-gray-200"><i class="fa-solid fa-hospital mr-2 text-red-400"></i>門諾醫院</button>
-                <button onclick="selectPreset('東大門夜市')" class="p-3 bg-gray-50 rounded-lg text-left text-sm text-gray-700 hover:bg-gray-100 border border-gray-200"><i class="fa-solid fa-utensils mr-2 text-orange-400"></i>東大門夜市</button>
-                <button onclick="selectPreset('遠雄海洋公園')" class="p-3 bg-gray-50 rounded-lg text-left text-sm text-gray-700 hover:bg-gray-100 border border-gray-200"><i class="fa-solid fa-fish mr-2 text-blue-400"></i>海洋公園</button>
-                <button onclick="selectPreset('七星潭')" class="p-3 bg-gray-50 rounded-lg text-left text-sm text-gray-700 hover:bg-gray-100 border border-gray-200"><i class="fa-solid fa-water mr-2 text-blue-300"></i>七星潭</button>
-                <button onclick="selectPreset('花蓮機場')" class="p-3 bg-gray-50 rounded-lg text-left text-sm text-gray-700 hover:bg-gray-100 border border-gray-200"><i class="fa-solid fa-plane mr-2 text-purple-400"></i>花蓮機場</button>
-            </div>
+    <div class="row">
+        <label>上車地點</label>
+        <div class="location-group">
+            <input type="text" id="locationData" placeholder="請輸入或選擇地點">
+            <button type="button" class="btn-map" onclick="openLocationModal()">📍 選擇</button>
         </div>
     </div>
 
-    <!-- JS 邏輯 -->
-    <script>
-        // 設定配置
-        // TODO: 請填入你的 LIFF ID
-        const LIFF_ID = '2008907691-x4s1XueL'; 
-        // TODO: 請填入你的 Google Apps Script 發布網址
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwODDCmwAggIyan3gxJJazGd3fWR9N2JsBk04OBQfyQ6SPjduhbQIEg_B_GZWH2Uex7/exec'; 
+    <div class="row">
+        <label>聯絡電話 <span style="font-size:0.9rem; font-weight:normal; color:#666;">(選填)</span></label>
+        <input type="tel" id="phoneData" placeholder="09xx...">
+        <div class="hint">💡 提示：本人搭車免填，幫親友叫車請填寫對方號碼。</div>
+    </div>
 
-        // 狀態變數
-        let userProfile = null;
-        let isSubmitting = false;
+    <button id="submitBtn" class="btn-submit" onclick="submitBooking()">確認預約</button>
+</div>
 
-        // 初始化
-        window.onload = function() {
-            initDateInput();
-            loadCustomLocations();
-            initializeLiff();
-        };
+<div id="locationModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>常用地點</h3>
+            <button class="close-btn" onclick="closeLocationModal()">×</button>
+        </div>
 
-        // 1. 初始化 LIFF
-        async function initializeLiff() {
-            try {
-                await liff.init({ liffId: LIFF_ID });
-                if (liff.isLoggedIn()) {
-                    getUserProfile();
-                } else {
-                    liff.login();
-                }
-            } catch (error) {
-                console.error('LIFF Init Error:', error);
-                document.getElementById('user-status').innerText = '系統初始化失敗，請重新整理';
+        <p style="font-weight:bold; color:#666;">我的最愛 (可編輯)</p>
+        <div class="tag-group">
+            <div class="tag saved" id="favA" onclick="selectLocation(this.innerText)">自家: 花蓮市...</div>
+            <button style="width:auto; padding:5px 10px; font-size:0.8rem;" onclick="editFavorite('favA')">✏️ 編輯A</button>
+        </div>
+        <div class="tag-group">
+            <div class="tag saved" id="favB" onclick="selectLocation(this.innerText)">公司: 吉安鄉...</div>
+            <button style="width:auto; padding:5px 10px; font-size:0.8rem;" onclick="editFavorite('favB')">✏️ 編輯B</button>
+        </div>
+
+        <hr>
+        <p style="font-weight:bold; color:#666;">花蓮熱門地標</p>
+        <div class="tag-group">
+            <div class="tag" onclick="selectLocation('花蓮火車站 (前站)')">花蓮火車站 (前站)</div>
+            <div class="tag" onclick="selectLocation('花蓮火車站 (後站)')">花蓮火車站 (後站)</div>
+            <div class="tag" onclick="selectLocation('慈濟醫院 (大門)')">慈濟醫院 (大門)</div>
+            <div class="tag" onclick="selectLocation('門諾醫院')">門諾醫院</div>
+            <div class="tag" onclick="selectLocation('東大門夜市')">東大門夜市</div>
+            <div class="tag" onclick="selectLocation('遠雄悅來飯店')">遠雄悅來飯店</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 設定區
+    const LIFF_ID = '2008907691-x4s1XueL'; 
+    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwODDCmwAggIyan3gxJJazGd3fWR9N2JsBk04OBQfyQ6SPjduhbQIEg_B_GZWH2Uex7/exec'; 
+
+    // 初始化
+    window.onload = function() {
+        initLiff();
+        loadFavorites(); // 讀取儲存的地址
+        setDefaultDate(); // 設定預設日期為今天
+    };
+
+    function initLiff() {
+        liff.init({ liffId: LIFF_ID }).then(() => {
+            if (!liff.isLoggedIn()) {
+                liff.login();
             }
-        }
+        }).catch(err => {
+            console.error('LIFF Init Error', err);
+        });
+    }
 
-        async function getUserProfile() {
-            try {
-                const profile = await liff.getProfile();
-                userProfile = profile;
-                document.getElementById('user-status').innerText = `你好，${profile.displayName}`;
-            } catch (error) {
-                console.error('Error getting profile:', error);
+    function setDefaultDate() {
+        const now = new Date();
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        // 日期 input 格式通常為 YYYY-MM-DD，這裡為了顯示方便使用瀏覽器預設
+        document.getElementById('dateData').valueAsDate = now;
+    }
+
+    // --- 地點選擇與儲存邏輯 ---
+    function openLocationModal() { document.getElementById('locationModal').style.display = 'flex'; }
+    function closeLocationModal() { document.getElementById('locationModal').style.display = 'none'; }
+    
+    function selectLocation(text) {
+        // 去除標籤中的 "自家: " 前綴，只填入地址
+        let address = text.includes(':') ? text.split(':')[1].trim() : text;
+        document.getElementById('locationData').value = address;
+        closeLocationModal();
+    }
+
+    function loadFavorites() {
+        const a = localStorage.getItem('taxi_fav_A');
+        const b = localStorage.getItem('taxi_fav_B');
+        if (a) document.getElementById('favA').innerText = a;
+        if (b) document.getElementById('favB').innerText = b;
+    }
+
+    function editFavorite(key) {
+        const currentVal = document.getElementById(key).innerText;
+        Swal.fire({
+            title: '編輯常用地址',
+            input: 'text',
+            inputValue: currentVal,
+            showCancelButton: true,
+            confirmButtonText: '儲存',
+            cancelButtonText: '取消'
+        }).then((result) => {
+            if (result.isConfirmed && result.value) {
+                const storageKey = key === 'favA' ? 'taxi_fav_A' : 'taxi_fav_B';
+                localStorage.setItem(storageKey, result.value);
+                document.getElementById(key).innerText = result.value;
             }
+        });
+    }
+
+    // --- 送出預約核心邏輯 ---
+    function submitBooking() {
+        const date = document.getElementById('dateData').value;
+        const time = document.getElementById('timeData').value;
+        const location = document.getElementById('locationData').value;
+        const phone = document.getElementById('phoneData').value;
+
+        // 1. 基本驗證
+        if (!date || !time || !location) {
+            Swal.fire('資料不完整', '請填寫日期、時間與地點', 'warning');
+            return;
         }
 
-        // 2. 日期初始化 (預設今天)
-        function initDateInput() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const todayStr = `${year}-${month}-${day}`;
-            
-            const dateInput = document.getElementById('dateInput');
-            dateInput.value = todayStr;
-            dateInput.min = todayStr; // 不能選過去日期
-        }
+        // 鎖定按鈕避免重複點擊
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerText = '系統檢查中...';
 
-        // 3. Modal 操作邏輯
-        function openLocationModal() {
-            const modal = document.getElementById('locationModal');
-            const content = document.getElementById('modalContent');
-            modal.classList.remove('hidden');
-            // 小動畫
-            setTimeout(() => {
-                content.classList.remove('translate-y-full');
-            }, 10);
-        }
-
-        function closeLocationModal() {
-            const modal = document.getElementById('locationModal');
-            const content = document.getElementById('modalContent');
-            content.classList.add('translate-y-full');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 300);
-        }
-
-        function selectPreset(locationName) {
-            document.getElementById('locationInput').value = locationName;
-            closeLocationModal();
-        }
-
-        // 4. 常用地址儲存邏輯 (使用 LocalStorage)
-        function loadCustomLocations() {
-            const locA = localStorage.getItem('taxi_loc_A');
-            const locB = localStorage.getItem('taxi_loc_B');
-            if (locA) document.getElementById('label-loc-A').innerText = locA;
-            if (locB) document.getElementById('label-loc-B').innerText = locB;
-        }
-
-        function editCustomLocation(key) {
-            Swal.fire({
-                title: `設定常用地址 ${key}`,
-                input: 'text',
-                inputValue: localStorage.getItem(`taxi_loc_${key}`) || '',
-                showCancelButton: true,
-                confirmButtonText: '儲存',
-                cancelButtonText: '取消',
-                confirmButtonColor: '#06c755'
-            }).then((result) => {
-                if (result.isConfirmed && result.value) {
-                    localStorage.setItem(`taxi_loc_${key}`, result.value);
-                    document.getElementById(`label-loc-${key}`).innerText = result.value;
-                }
-            });
-        }
-
-        function selectCustomLocation(key) {
-            const val = localStorage.getItem(`taxi_loc_${key}`);
-            if (val) {
-                document.getElementById('locationInput').value = val;
-                closeLocationModal();
-            } else {
-                editCustomLocation(key);
-            }
-        }
-
-        // 5. 送出訂單邏輯
-        async function submitBooking() {
-            if (isSubmitting) return;
-
-            // 取得表單資料
-            const date = document.getElementById('dateInput').value;
-            const time = document.getElementById('timeInput').value;
-            const location = document.getElementById('locationInput').value;
-            const phone = document.getElementById('phoneInput').value;
-
-            // 驗證
-            if (!date || !time || !location) {
-                showError('請完整填寫日期、時間與地點');
-                return;
-            }
-
-            // UI 鎖定
-            isSubmitting = true;
-            const btn = document.getElementById('submitBtn');
-            const originalBtnContent = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 預約確認中...';
-            btn.classList.add('opacity-75', 'cursor-not-allowed');
-            document.getElementById('errorMsg').classList.add('hidden');
-
+        // 2. 取得使用者個資
+        liff.getProfile().then(profile => {
             const payload = {
-                userId: userProfile ? userProfile.userId : 'GUEST',
-                displayName: userProfile ? userProfile.displayName : 'Guest',
-                date: date,
+                action: 'book',
+                userId: profile.userId,
+                displayName: profile.displayName,
+                date: date.substring(5), // 只取 MM-DD
                 time: time,
                 location: location,
                 phone: phone
             };
 
-            try {
-                // 發送請求到 GAS
-                // 使用 no-cors 模式是為了避開簡單請求的 CORS 問題，
-                // 但 GAS 必須正確處理 doPost 並返回 JSON
-                // 注意：fetch 到 GAS 常常會有 CORS 限制，建議後端使用 ContentService 並配合 redirect
-                const response = await fetch(GAS_URL, {
-                    method: 'POST',
-                    mode: 'no-cors', // 重要：簡單請求，無法讀取回傳內容，但能送出
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
+            // 3. 發送至 GAS
+            fetch(GAS_API_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+                // "no-cors" 模式很重要，因為 GAS 會有 CORS 限制，
+                // 但為了讀取回應 (撞單檢查)，我們需要用一些技巧。
+                // 這裡我們直接用標準模式，若遇到 CORS 錯誤，建議使用 redirect: 'follow'
+            })
+            .then(response => response.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerText = '確認預約';
 
-                // 因為 no-cors 無法讀取回應狀態，我們假設如果沒有報錯就是成功
-                // (更嚴謹的做法是後端回傳 success，前端用 redirect 或 jsonp，但這裡用最簡解法)
-                
-                // 模擬等待檢查 (因為 no-cors 讀不到 return)
-                // 在真實 v2 版本，建議使用 JSONP 或完整的 CORS proxy
-                // 這裡我們用一個折衷方案：假設成功，如果 GAS 檢查失敗不會寫入日曆，
-                // 但前端無法得知具體錯誤 (是唯一的缺點，但在 MVP 可接受)
-                
-                // 為了讓 MVP 體驗更好，我們這裡假裝成功，然後發送訊息
-                // 如果需要精確的「行程衝突」回報，需要後端配合 allow-cors header
-                
-                // --- 成功後的處理 ---
-                
-                // 1. 組裝回傳訊息
-                // 格式化日期：移除年份
-                const dateObj = new Date(date);
-                const dateStr = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
-
-                const messageText = `【預約成功】\n📅 日期：${dateStr}\n⏰ 時間：${time}\n📍 地點：${location}\n📞 電話：${phone || '無'}\n\n系統已寫入GOOGLE預約日曆,感謝您的預約！`;
-
-                // 2. 透過 LIFF 發送訊息到聊天室
-                if (liff.isInClient()) {
-                    await liff.sendMessages([{
-                        type: 'text',
-                        text: messageText
-                    }]);
+                if (data.status === 'success') {
+                    Swal.fire('預約成功', '司機已收到通知！', 'success').then(() => {
+                        liff.closeWindow();
+                    });
+                } else if (data.status === 'conflict') {
+                    Swal.fire('時段衝突', data.message, 'error');
+                } else {
+                    Swal.fire('錯誤', data.message, 'error');
                 }
+            })
+            .catch(error => {
+                // GAS 若因 CORS 拋錯但其實成功執行，這部分比較複雜。
+                // 在此架構下，建議 GAS 回傳 JSON，前端解析。
+                // 若遇跨域問題，最穩解法是將 HTML 直接放在 GAS 內 (但您要求 GitHub)。
+                console.error(error);
+                btn.disabled = false;
+                btn.innerText = '確認預約';
+                Swal.fire('連線錯誤', '請檢查網路或稍後再試', 'error');
+            });
 
-                // 3. 顯示成功彈窗並關閉
-                await Swal.fire({
-                    icon: 'success',
-                    title: '預約已送出',
-                    text: '請查看聊天室訊息',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
+        }).catch(err => {
+            console.error(err);
+            Swal.fire('LIFF錯誤', '無法取得使用者資料', 'error');
+        });
+    }
+</script>
 
-                liff.closeWindow();
-
-            } catch (error) {
-                console.error('Submit Error:', error);
-                showError('連線錯誤，請稍後再試');
-                isSubmitting = false;
-                btn.innerHTML = originalBtnContent;
-                btn.classList.remove('opacity-75', 'cursor-not-allowed');
-            }
-        }
-
-        function showError(msg) {
-            const el = document.getElementById('errorMsg');
-            el.innerText = msg;
-            el.classList.remove('hidden');
-        }
-    </script>
 </body>
 </html>
