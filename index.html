@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>自助預約：我的行程</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/dayjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/locale/zh-tw.min.js"></script>
+    <style>
+        /* 強制防止 iOS 縮放，並設定基礎字體大小 */
+        input, select, textarea { font-size: 17px !important; } 
+        .hidden { display: none !important; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* 隱藏捲軸但保留功能 */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .slot-btn.disabled {
+            background-color: #f3f4f6;
+            color: #d1d5db;
+            border-color: #e5e7eb;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+        .slot-btn.selected {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #2563eb;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans antialiased text-gray-800">
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <div class="loader mb-4 w-12 h-12 border-4 text-blue-500"></div>
+        <p id="loading-text" class="text-gray-500 font-bold text-lg">正在讀取預約表...</p>
+    </div>
+
+    <div id="app" class="hidden min-h-screen flex justify-center p-0 md:p-4">
+        <div class="w-full max-w-md bg-white shadow-2xl rounded-none md:rounded-3xl overflow-hidden min-h-screen md:min-h-0 flex flex-col">
+            
+            <!-- Header -->
+            <header class="bg-gradient-to-r from-blue-600 to-blue-500 text-white p-6 pb-8 rounded-b-[2.5rem] shadow-lg z-10 relative">
+                <div class="text-center">
+                    <h1 class="text-2xl font-extrabold tracking-wide">🗓️ 自助預約我的行程</h1>
+                    <p id="user-display" class="text-blue-100 text-sm mt-2 font-medium">載入使用者...</p>
+                </div>
+            </header>
+
+            <!-- Form Container -->
+            <div class="flex-1 overflow-y-auto p-4 -mt-4 relative z-20 space-y-6 pb-24">
+                
+                <!-- 1. 日期選擇 (橫向捲軸) -->
+                <div class="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
+                    <label class="block font-bold text-gray-700 mb-3 text-lg flex items-center">
+                        📅 選擇日期
+                    </label>
+                    <div id="date-scroller" class="flex space-x-3 overflow-x-auto hide-scrollbar pb-2">
+                        <!-- JS 動態生成日期按鈕 -->
+                    </div>
+                </div>
+
+                <!-- 2. 時段選擇 (網格) -->
+                <div class="bg-white p-4 rounded-3xl shadow-sm border border-gray-100">
+                    <div class="flex justify-between items-end mb-3">
+                        <label class="font-bold text-gray-700 text-lg">🕒 選擇時段</label>
+                        <span class="text-xs text-gray-400">每次預約 30 分鐘</span>
+                    </div>
+                    
+                    <div id="time-grid" class="grid grid-cols-4 gap-2">
+                        <div class="col-span-4 text-center text-gray-400 py-4 text-sm">請先選擇上方日期</div>
+                    </div>
+                    
+                    <div class="mt-3 flex justify-center space-x-4 text-xs text-gray-500">
+                        <div class="flex items-center"><div class="w-3 h-3 bg-white border border-blue-500 rounded mr-1"></div>可預約</div>
+                        <div class="flex items-center"><div class="w-3 h-3 bg-blue-500 rounded mr-1"></div>已選</div>
+                        <div class="flex items-center"><div class="w-3 h-3 bg-gray-100 border border-gray-200 rounded mr-1 decoration-slice"></div>已滿</div>
+                    </div>
+                </div>
+
+                <!-- 3. 基本資料表單 -->
+                <form id="booking-form" class="bg-white rounded-3xl shadow-md border border-gray-100 p-5 space-y-4">
+                    <input type="hidden" id="name">
+                    <input type="hidden" id="selected-date">
+                    <input type="hidden" id="selected-time">
+
+                    <!-- 聯絡電話 -->
+                    <div>
+                        <label class="block font-bold text-gray-700 mb-2">📞 聯絡電話</label>
+                        <input type="tel" id="phone" required placeholder="09xx-xxx-xxx" inputmode="numeric" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-lg font-bold tracking-wider text-gray-700">
+                    </div>
+
+                    <!-- 上車地點 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block font-bold text-green-600">🟢 上車地點</label>
+                            <button type="button" onclick="openLocationPicker('pickup')" class="px-3 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-full border border-green-200">📍 選地點</button>
+                        </div>
+                        <input type="text" id="pickup" required placeholder="輸入上車處" class="w-full p-3 border border-gray-200 rounded-xl text-base shadow-sm focus:ring-2 focus:ring-green-500 outline-none">
+                    </div>
+
+                    <!-- 下車地點 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block font-bold text-red-600">🔴 下車地點</label>
+                            <button type="button" onclick="openLocationPicker('dropoff')" class="px-3 py-1 bg-red-50 text-red-700 text-xs font-bold rounded-full border border-red-200">📍 選地點</button>
+                        </div>
+                        <input type="text" id="dropoff" required placeholder="輸入目的地" class="w-full p-3 border border-gray-200 rounded-xl text-base shadow-sm focus:ring-2 focus:ring-red-500 outline-none">
+                    </div>
+
+                    <!-- 付款方式 -->
+                    <div>
+                         <label class="block font-bold text-gray-700 mb-2">💰 付款方式</label>
+                         <select id="payment" class="w-full p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-base font-medium text-gray-800 outline-none">
+                            <option value="現金">💵 現金</option>
+                            <option value="敬老卡">🧓 敬老卡</option>
+                            <option value="愛心卡">❤️ 愛心卡</option>
+                            <option value="LINE PAY">💳 LINE PAY</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Footer Action -->
+            <div class="p-4 bg-white border-t border-gray-100 z-30 fixed bottom-0 w-full max-w-md md:static md:rounded-b-3xl">
+                <button id="submitBtn" onclick="confirmAndSubmit()" disabled class="w-full py-3 rounded-2xl bg-gray-300 text-white text-lg font-bold shadow-sm transition-all flex justify-center items-center">
+                    請先選擇時間
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // 設定中文語系
+        dayjs.locale('zh-tw');
+        
+        // ★★★ 你的 GAS API URL (未來填這裡) ★★★
+        // 目前先用模擬資料
+        const GOOGLE_CALENDAR_API_URL = ""; 
+
+        const dom = {
+            loading: document.getElementById('loading-overlay'),
+            app: document.getElementById('app'),
+            userDisplay: document.getElementById('user-display'),
+            btn: document.getElementById('submitBtn'),
+            dateScroller: document.getElementById('date-scroller'),
+            timeGrid: document.getElementById('time-grid'),
+            inputs: {
+                name: document.getElementById('name'),
+                phone: document.getElementById('phone'),
+                pickup: document.getElementById('pickup'),
+                dropoff: document.getElementById('dropoff'),
+                payment: document.getElementById('payment'),
+                selectedDate: document.getElementById('selected-date'),
+                selectedTime: document.getElementById('selected-time')
+            }
+        };
+
+        // 模擬已預約的時段 (這部分未來由 GAS 回傳)
+        // 格式：YYYY-MM-DD HH:mm
+        const MOCK_BUSY_SLOTS = [
+            dayjs().add(1, 'day').format('YYYY-MM-DD') + ' 10:00',
+            dayjs().add(1, 'day').format('YYYY-MM-DD') + ' 14:30',
+            dayjs().format('YYYY-MM-DD') + ' 12:00' // 今天中午滿了
+        ];
+
+        // 營業時間設定
+        const BUSINESS_HOURS = { start: 8, end: 20 }; // 08:00 - 20:00
+        const SLOT_INTERVAL = 30; // 30分鐘一格
+
+        // 初始化
+        window.onload = function() {
+            initDateScroller();
+            loadUserProfile();
+            loadSavedPhone();
+        };
+
+        // 1. 初始化日期選擇器 (未來7天)
+        function initDateScroller() {
+            dom.dateScroller.innerHTML = '';
+            for (let i = 0; i < 7; i++) {
+                const date = dayjs().add(i, 'day');
+                const isToday = i === 0;
+                const dateStr = date.format('YYYY-MM-DD');
+                const displayDay = date.format('MM/DD');
+                const displayWeek = isToday ? '今天' : date.format('dddd').replace('週', '');
+
+                const btn = document.createElement('button');
+                btn.className = `flex-shrink-0 w-16 h-20 rounded-2xl flex flex-col items-center justify-center border-2 transition-all ${isToday ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-gray-100 bg-white text-gray-500'}`;
+                btn.onclick = () => selectDate(dateStr, btn);
+                btn.innerHTML = `
+                    <span class="text-xs font-bold mb-1">${displayWeek}</span>
+                    <span class="text-lg font-extrabold">${displayDay}</span>
+                `;
+                dom.dateScroller.appendChild(btn);
+                
+                // 預設選取今天
+                if (isToday) selectDate(dateStr, btn);
+            }
+        }
+
+        // 2. 選取日期
+        async function selectDate(dateStr, btnElement) {
+            // UI 更新
+            Array.from(dom.dateScroller.children).forEach(c => {
+                c.classList.remove('border-blue-500', 'bg-blue-500', 'text-white', 'shadow-md');
+                c.classList.add('border-gray-100', 'bg-white', 'text-gray-500');
+                // 內部文字顏色重置
+                c.querySelector('span:first-child').classList.remove('text-blue-100');
+            });
+            
+            // 選中樣式
+            btnElement.classList.remove('border-gray-100', 'bg-white', 'text-gray-500');
+            btnElement.classList.add('border-blue-500', 'bg-blue-500', 'text-white', 'shadow-md');
+            btnElement.querySelector('span:first-child').classList.add('text-blue-100'); // 把「今天/週一」變淡藍色
+
+            dom.inputs.selectedDate.value = dateStr;
+            dom.inputs.selectedTime.value = ''; // 重置時間
+            updateSubmitButton();
+
+            // 載入該日期的時段
+            await renderTimeSlots(dateStr);
+        }
+
+        // 3. 渲染時段網格
+        async function renderTimeSlots(dateStr) {
+            dom.timeGrid.innerHTML = '<div class="col-span-4 flex justify-center py-4"><div class="loader w-6 h-6 border-2 border-blue-400"></div></div>';
+            
+            // ★★★ 這裡未來改為 fetch GAS API ★★★
+            // 目前使用 setTimeout 模擬網路延遲 + Mock Data
+            await new Promise(r => setTimeout(r, 300)); 
+            const busyList = MOCK_BUSY_SLOTS; 
+
+            dom.timeGrid.innerHTML = '';
+            
+            const startHour = BUSINESS_HOURS.start;
+            const endHour = BUSINESS_HOURS.end;
+            const now = dayjs();
+            const isToday = dateStr === now.format('YYYY-MM-DD');
+
+            for (let h = startHour; h < endHour; h++) {
+                for (let m = 0; m < 60; m += SLOT_INTERVAL) {
+                    const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                    const fullTimeStr = `${dateStr} ${timeStr}`;
+                    const slotTime = dayjs(fullTimeStr);
+                    
+                    let status = 'available'; // available, busy, past
+
+                    // 檢查是否過去時間 (緩衝 30 分鐘)
+                    if (isToday && slotTime.isBefore(now.add(30, 'minute'))) {
+                        status = 'past';
+                    }
+
+                    // 檢查是否已預約 (比對 Mock Data)
+                    if (busyList.includes(fullTimeStr)) {
+                        status = 'busy';
+                    }
+
+                    createSlotButton(timeStr, status);
+                }
+            }
+        }
+
+        function createSlotButton(timeStr, status) {
+            const btn = document.createElement('button');
+            btn.className = 'slot-btn py-2 rounded-xl text-sm font-bold border transition-all duration-200';
+            btn.innerText = timeStr;
+
+            if (status === 'past' || status === 'busy') {
+                btn.classList.add('disabled');
+                btn.disabled = true;
+                if(status === 'busy') btn.title = '此時段已額滿';
+            } else {
+                btn.classList.add('bg-white', 'text-blue-600', 'border-blue-200', 'hover:border-blue-500');
+                btn.onclick = () => selectTime(timeStr, btn);
+            }
+            dom.timeGrid.appendChild(btn);
+        }
+
+        // 4. 選取時間
+        function selectTime(timeStr, btnElement) {
+            // 清除其他選取
+            document.querySelectorAll('.slot-btn').forEach(b => {
+                if (!b.disabled) {
+                    b.classList.remove('selected');
+                    b.classList.add('bg-white', 'text-blue-600');
+                }
+            });
+
+            // 選取當前
+            btnElement.classList.remove('bg-white', 'text-blue-600');
+            btnElement.classList.add('selected');
+
+            dom.inputs.selectedTime.value = timeStr;
+            updateSubmitButton();
+        }
+
+        function updateSubmitButton() {
+            const date = dom.inputs.selectedDate.value;
+            const time = dom.inputs.selectedTime.value;
+            
+            if (date && time) {
+                dom.btn.disabled = false;
+                dom.btn.classList.remove('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+                dom.btn.classList.add('bg-gradient-to-r', 'from-blue-600', 'to-blue-500', 'text-white', 'shadow-lg');
+                dom.btn.innerHTML = `確認預約：${dayjs(date).format('MM/DD')} ${time}`;
+            } else {
+                dom.btn.disabled = true;
+                dom.btn.classList.add('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+                dom.btn.classList.remove('bg-gradient-to-r', 'from-blue-600', 'to-blue-500', 'text-white', 'shadow-lg');
+                dom.btn.innerHTML = '請先選擇時間';
+            }
+        }
+
+        // --- 其他輔助功能 (保留原本邏輯) ---
+
+        function loadUserProfile() {
+            const liffId = "2008907691-v0O7W8d3"; // 記得確認 ID
+            liff.init({ liffId: liffId }).then(() => {
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                } else {
+                    liff.getProfile().then(profile => {
+                        dom.userDisplay.innerText = `Hi, ${profile.displayName}`;
+                        dom.inputs.name.value = profile.displayName;
+                        dom.loading.classList.add('hidden');
+                        dom.app.classList.remove('hidden');
+                    });
+                }
+            }).catch(err => {
+                // 方便在電腦版測試
+                dom.loading.classList.add('hidden');
+                dom.app.classList.remove('hidden');
+                console.error(err);
+            });
+        }
+        
+        function loadSavedPhone() {
+            const saved = localStorage.getItem('taxi_user_phone');
+            if (saved) dom.inputs.phone.value = saved;
+        }
+
+        // --- 預約送出 ---
+        async function confirmAndSubmit() {
+            const date = dom.inputs.selectedDate.value;
+            const time = dom.inputs.selectedTime.value;
+            const pickup = dom.inputs.pickup.value;
+            const dropoff = dom.inputs.dropoff.value;
+            const phone = dom.inputs.phone.value;
+            
+            if (!pickup || !dropoff || !phone) {
+                Swal.fire('資料不完整', '請填寫電話與上下車地點', 'warning');
+                return;
+            }
+
+            // 二次確認
+            const result = await Swal.fire({
+                title: '確認預約內容',
+                html: `
+                    <div class="text-left bg-gray-50 p-4 rounded-lg space-y-2 text-sm">
+                        <p>📅 <strong>${date} ${time}</strong></p>
+                        <p>📞 ${phone}</p>
+                        <p>🟢 ${pickup}</p>
+                        <p>🔴 ${dropoff}</p>
+                        <p>💰 ${dom.inputs.payment.value}</p>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: '✅ 確定送出',
+                cancelButtonText: '再改一下',
+                confirmButtonColor: '#2563eb'
+            });
+
+            if (result.isConfirmed) {
+                // 儲存電話
+                localStorage.setItem('taxi_user_phone', phone);
+                
+                // 1. 產生 Google 日曆連結
+                const startDateTime = dayjs(`${date} ${time}`).format('YYYYMMDDTHHmmss');
+                const endDateTime = dayjs(`${date} ${time}`).add(30, 'minute').format('YYYYMMDDTHHmmss');
+                const details = encodeURIComponent(`乘客：${dom.inputs.name.value}\n電話：${phone}\n付款：${dom.inputs.payment.value}`);
+                const location = encodeURIComponent(pickup);
+                const title = encodeURIComponent(`🚕 預約 (${pickup} -> ${dropoff})`);
+                
+                const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDateTime}/${endDateTime}&details=${details}&location=${location}`;
+
+                // 2. LINE 訊息內容
+                const msg = `🗓️ 新增預約\n📅 ${date} ${time}\n🟢 ${pickup}\n🔴 ${dropoff}\n📞 ${phone}`;
+
+                if (liff.isInClient()) {
+                    await liff.sendMessages([{ type: 'text', text: msg }]);
+                    liff.closeWindow();
+                } else {
+                    // 電腦版或外部瀏覽器測試用
+                    window.open(calendarUrl, '_blank');
+                    Swal.fire('預約模擬成功', '在 LIFF 中會直接傳送訊息並關閉', 'success');
+                }
+            }
+        }
+        
+        // --- 常用地點 (保留功能但簡化代碼) ---
+        const PRESET_LOCATIONS = [
+            { name: '常用地址 A', icon: '⭐', value: 'FAV_ADDR_A' },
+            { name: '花蓮車站', icon: '🚉' },
+            { name: '慈濟醫院', icon: '🏥' },
+             { name: '門諾醫院', icon: '🏥' }
+        ];
+        
+        function openLocationPicker(inputId) {
+            let html = '<div class="grid grid-cols-2 gap-2">';
+            PRESET_LOCATIONS.forEach(loc => {
+                html += `<button onclick="selectLoc('${inputId}', '${loc.value || loc.name}')" class="p-3 border rounded-lg hover:bg-blue-50 text-left">${loc.icon} ${loc.name}</button>`;
+            });
+            html += '</div>';
+            Swal.fire({ title: '快速選擇', html: html, showConfirmButton: false });
+        }
+        
+        window.selectLoc = (id, val) => {
+            if(val === 'FAV_ADDR_A') {
+                val = localStorage.getItem('taxi_fav_addr_a') || '';
+                if(!val) return Swal.fire('尚未設定', '請先手動輸入一次並記憶', 'info');
+            }
+            document.getElementById(id).value = val;
+            Swal.close();
+        }
+    </script>
+</body>
+</html>
