@@ -3,29 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>自助預約</title>
+    <title>自助預約服務</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 針對長輩優化：禁止文字選取，避免誤觸 */
-        body { -webkit-user-select: none; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-        /* 自定義隱藏 input time 的小鐘圖示，讓點擊區域最大化 */
+        body { -webkit-user-select: none; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+        /* 隱藏原生 Time Input 的小圖標，讓點擊區域最大化 */
         input[type="time"]::-webkit-calendar-picker-indicator { background: transparent; bottom: 0; color: transparent; cursor: pointer; height: auto; left: 0; position: absolute; right: 0; top: 0; width: auto; }
         input[type="time"] { position: relative; }
-        /* 選中狀態的邊框 */
         .date-btn.selected { background-color: #2563EB; color: white; border-color: #2563EB; }
+        /* 增加按鈕點擊的回饋感 */
+        button:active { transform: scale(0.98); }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen pb-10">
 
+    <!-- Loading 遮罩 -->
     <div id="loading" class="fixed inset-0 bg-white z-50 flex items-center justify-center">
-        <div class="text-xl font-bold text-gray-500">載入中...</div>
+        <div class="text-xl font-bold text-gray-500">系統載入中...</div>
     </div>
 
     <div class="max-w-md mx-auto bg-white min-h-screen shadow-lg">
         
-        <div class="p-6 bg-blue-600 text-white flex items-center space-x-4">
-            <img id="userAvatar" src="https://via.placeholder.com/150" class="w-16 h-16 rounded-full border-2 border-white shadow-md">
+        <!-- Row 1: 乘客檔案 + 歡迎詞 -->
+        <div class="p-6 bg-blue-600 text-white flex items-center space-x-4 shadow-md">
+            <img id="userAvatar" src="https://via.placeholder.com/150" class="w-16 h-16 rounded-full border-2 border-white">
             <div>
                 <p class="text-sm opacity-90">早安，歡迎搭乘</p>
                 <h1 id="userName" class="text-2xl font-bold">載入中...</h1>
@@ -34,13 +36,16 @@
 
         <form id="bookingForm" class="p-4 space-y-6">
             
+            <!-- Row 2: 視覺化日期按鈕 -->
             <div>
                 <label class="block text-lg font-bold text-gray-700 mb-2">📅 選擇日期</label>
                 <div id="dateContainer" class="grid grid-cols-4 gap-2">
-                    </div>
+                    <!-- JS 自動產生 -->
+                </div>
                 <input type="hidden" id="selectedDate" required>
             </div>
 
+            <!-- Row 3: 時間輸入 (Native Picker) -->
             <div>
                 <label class="block text-lg font-bold text-gray-700 mb-2">⏰ 選擇時間</label>
                 <div class="relative">
@@ -52,56 +57,59 @@
                 </div>
             </div>
 
+            <!-- Row 4: 上車地點 (記憶 + 快速按鈕) -->
             <div>
                 <label class="block text-lg font-bold text-gray-700 mb-2">📍 上車地點</label>
                 
                 <div class="flex space-x-2 mb-3">
-                    <button type="button" onclick="fillAddress('A')" id="btnA" class="flex-1 py-2 bg-gray-200 rounded-lg text-sm font-bold text-gray-600 active:bg-gray-300">常用 A</button>
-                    <button type="button" onclick="fillAddress('B')" id="btnB" class="flex-1 py-2 bg-gray-200 rounded-lg text-sm font-bold text-gray-600 active:bg-gray-300">常用 B</button>
-                    <button type="button" onclick="fillAddress('C')" id="btnC" class="flex-1 py-2 bg-gray-200 rounded-lg text-sm font-bold text-gray-600 active:bg-gray-300">常用 C</button>
+                    <button type="button" onclick="fillAddress('A')" id="btnA" class="flex-1 py-2 bg-gray-200 rounded-lg text-sm font-bold text-gray-600">常用 A</button>
+                    <button type="button" onclick="fillAddress('B')" id="btnB" class="flex-1 py-2 bg-gray-200 rounded-lg text-sm font-bold text-gray-600">常用 B</button>
+                    <button type="button" onclick="fillAddress('C')" id="btnC" class="flex-1 py-2 bg-gray-200 rounded-lg text-sm font-bold text-gray-600">常用 C</button>
                 </div>
 
                 <div class="relative">
                     <input type="text" id="addressInput" required placeholder="請輸入或選擇上方地點"
                         class="w-full p-4 text-xl border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none">
-                    <button type="button" id="saveAddrBtn" onclick="saveCurrentAddress()" class="absolute right-2 top-2 bottom-2 px-4 bg-blue-100 text-blue-600 rounded-lg text-sm font-bold">
+                    <button type="button" onclick="saveCurrentAddress()" class="absolute right-2 top-2 bottom-2 px-4 bg-blue-100 text-blue-600 rounded-lg text-sm font-bold">
                         存入<br>常用
                     </button>
                 </div>
             </div>
 
+            <!-- Row 5: 聯絡電話 -->
             <div>
-                <label class="block text-lg font-bold text-gray-700 mb-2">📞 聯絡電話</label>
-                <input type="tel" id="phoneInput" placeholder="幫人叫車時才需填寫"
-                    class="w-full p-3 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none placeholder-gray-400">
+                <label class="block text-lg font-bold text-gray-700 mb-2">📞 聯絡電話 <span class="text-sm font-normal text-gray-400">(選填)</span></label>
+                <input type="tel" id="phoneInput" placeholder="代叫車時才需填寫"
+                    class="w-full p-3 text-lg border-2 border-gray-300 rounded-xl focus:border-blue-500 outline-none">
             </div>
 
-            <button type="submit" id="submitBtn" class="w-full py-5 bg-green-600 text-white text-2xl font-bold rounded-xl shadow-lg active:scale-95 transition-transform">
+            <button type="submit" id="submitBtn" class="w-full py-5 bg-green-600 text-white text-2xl font-bold rounded-xl shadow-lg hover:bg-green-700">
                 確認預約
             </button>
         </form>
     </div>
 
+    <!-- Modal: 儲存地點 -->
     <div id="saveModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl p-6 w-full max-w-sm">
-            <h3 class="text-xl font-bold mb-4 text-center">將目前地址存入？</h3>
+            <h3 class="text-xl font-bold mb-4 text-center">存入哪個按鈕？</h3>
             <div class="grid grid-cols-3 gap-3">
-                <button onclick="confirmSave('A')" class="p-3 bg-gray-100 rounded-lg font-bold">位置 A</button>
-                <button onclick="confirmSave('B')" class="p-3 bg-gray-100 rounded-lg font-bold">位置 B</button>
-                <button onclick="confirmSave('C')" class="p-3 bg-gray-100 rounded-lg font-bold">位置 C</button>
+                <button onclick="confirmSave('A')" class="p-3 bg-gray-100 rounded-lg font-bold hover:bg-blue-100">位置 A</button>
+                <button onclick="confirmSave('B')" class="p-3 bg-gray-100 rounded-lg font-bold hover:bg-blue-100">位置 B</button>
+                <button onclick="confirmSave('C')" class="p-3 bg-gray-100 rounded-lg font-bold hover:bg-blue-100">位置 C</button>
             </div>
-            <button onclick="closeModal()" class="mt-4 w-full py-2 text-gray-500">取消</button>
+            <button onclick="document.getElementById('saveModal').classList.add('hidden')" class="mt-4 w-full py-2 text-gray-500">取消</button>
         </div>
     </div>
 
     <script>
-        // 設定區：請填入 GAS 部署網址
+        // ==================== 設定區 (請修改這裡) ====================
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbwODDCmwAggIyan3gxJJazGd3fWR9N2JsBk04OBQfyQ6SPjduhbQIEg_B_GZWH2Uex7/exec';
         const LIFF_ID = '2008907691-x4s1XueL';
+        // ========================================================
 
         let profile = null;
 
-        // 初始化
         window.onload = async function() {
             initDateButtons();
             loadSavedAddresses();
@@ -113,15 +121,15 @@
                 } else {
                     profile = await liff.getProfile();
                     document.getElementById('userName').innerText = profile.displayName;
-                    document.getElementById('userAvatar').src = profile.pictureUrl;
+                    document.getElementById('userAvatar').src = profile.pictureUrl || 'https://via.placeholder.com/150';
                     document.getElementById('loading').style.display = 'none';
                 }
             } catch (err) {
-                alert('LIFF 初始化失敗: ' + err);
+                alert('初始化錯誤: ' + err);
+                document.getElementById('loading').style.display = 'none';
             }
         };
 
-        // 1. 生成日期按鈕邏輯 (Today + 7 Days)
         function initDateButtons() {
             const container = document.getElementById('dateContainer');
             const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
@@ -130,69 +138,53 @@
             for (let i = 0; i < 8; i++) {
                 const d = new Date(today);
                 d.setDate(today.getDate() + i);
-                
                 const month = d.getMonth() + 1;
                 const date = d.getDate();
                 const day = weekDays[d.getDay()];
-                const dateVal = d.toISOString().split('T')[0]; // YYYY-MM-DD
+                const dateVal = d.toISOString().split('T')[0];
                 
                 const btnText = i === 0 ? `今天<br>${month}/${date}` : `${month}/${date}<br>(${day})`;
-                
                 const btn = document.createElement('div');
-                btn.className = `date-btn cursor-pointer border-2 border-gray-200 rounded-lg p-2 text-center text-gray-600 bg-white hover:bg-gray-50`;
+                btn.className = `date-btn cursor-pointer border-2 border-gray-200 rounded-lg p-2 text-center text-gray-600 bg-white`;
                 btn.innerHTML = `<span class="text-sm font-bold leading-tight pointer-events-none">${btnText}</span>`;
-                btn.onclick = () => selectDate(btn, dateVal);
+                btn.onclick = () => {
+                    document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    document.getElementById('selectedDate').value = dateVal;
+                };
                 container.appendChild(btn);
-                
-                // 預設選中今天
-                if (i === 0) selectDate(btn, dateVal);
+                if (i === 0) btn.click();
             }
         }
 
-        function selectDate(el, dateVal) {
-            document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('selected'));
-            el.classList.add('selected');
-            document.getElementById('selectedDate').value = dateVal;
-        }
-
-        // 2. 地址記憶功能
         function loadSavedAddresses() {
             ['A', 'B', 'C'].forEach(key => {
                 const addr = localStorage.getItem('addr_' + key);
                 if (addr) {
-                    document.getElementById('btn' + key).innerText = addr.substring(0, 4) + '...'; // 顯示簡寫
-                    document.getElementById('btn' + key).dataset.full = addr;
+                    document.getElementById('btn' + key).innerText = addr.substring(0, 3) + '...';
+                    document.getElementById('btn' + key).classList.add('bg-blue-100', 'text-blue-700');
                 }
             });
         }
 
         function fillAddress(key) {
             const addr = localStorage.getItem('addr_' + key);
-            if (addr) {
-                document.getElementById('addressInput').value = addr;
-            } else {
-                alert('這個按鈕還沒有儲存地址，請先輸入並儲存。');
-            }
+            if (addr) document.getElementById('addressInput').value = addr;
+            else alert('此按鈕尚未設定地址');
         }
 
         function saveCurrentAddress() {
-            const val = document.getElementById('addressInput').value;
-            if(!val) return alert('請先輸入地址');
+            if(!document.getElementById('addressInput').value) return alert('請先輸入地址');
             document.getElementById('saveModal').classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('saveModal').classList.add('hidden');
         }
 
         function confirmSave(key) {
             const val = document.getElementById('addressInput').value;
             localStorage.setItem('addr_' + key, val);
-            loadSavedAddresses(); // 更新按鈕文字
-            closeModal();
+            loadSavedAddresses();
+            document.getElementById('saveModal').classList.add('hidden');
         }
 
-        // 3. 表單送出
         document.getElementById('bookingForm').onsubmit = async function(e) {
             e.preventDefault();
             
@@ -200,11 +192,10 @@
             const date = document.getElementById('selectedDate').value;
             const time = document.getElementById('timeInput').value;
             
-            if(!date || !time) return alert('請完整選擇日期與時間');
+            if(!date || !time) return alert('請選擇日期與時間');
             
-            // UI Loading 狀態
             btn.disabled = true;
-            btn.innerText = '查詢中...';
+            btn.innerText = '正在預約...';
             btn.classList.add('bg-gray-400');
 
             const payload = {
@@ -217,28 +208,35 @@
             };
 
             try {
-                // 使用 no-cors 模式發送 (GAS 回傳需要在 Flex Message 處理結果)
-                // 但為了讀取衝突回傳，我們需要用標準 fetch 並處理 CORS (依賴 GAS 的正確回應)
-                // 這裡使用簡單的 fetch, GAS 必須回傳正確 JSON
+                // 使用 fetch 發送請求到 GAS
                 const res = await fetch(GAS_URL, {
                     method: 'POST',
                     body: JSON.stringify(payload)
                 });
+                
                 const data = await res.json();
 
                 if (data.status === 'success') {
-                    liff.closeWindow(); // 成功：關閉視窗，讓使用者看聊天室的 Flex Message
+                    // 即使 lineStatus 是 failed_but_booked，我們也顯示成功
+                    // 因為對乘客來說，日曆有寫進去最重要
+                    liff.closeWindow(); 
                 } else {
                     alert('❌ 預約失敗：' + data.message);
-                    btn.disabled = false;
-                    btn.innerText = '確認預約';
-                    btn.classList.remove('bg-gray-400');
+                    resetBtn();
                 }
             } catch (err) {
-                alert('系統錯誤，請檢查網路或稍後再試。' + err);
-                btn.disabled = false;
+                // 這裡通常不會跑到，因為後端現在一定會回傳 JSON
+                alert('系統連線異常，請檢查網路。' + err);
+                resetBtn();
             }
         };
+
+        function resetBtn() {
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = false;
+            btn.innerText = '確認預約';
+            btn.classList.remove('bg-gray-400');
+        }
     </script>
 </body>
 </html>
