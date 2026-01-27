@@ -10,34 +10,28 @@
         :root { --primary: #06c755; --bg: #f5f5f5; --text: #333; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: var(--bg); padding: 20px; color: var(--text); }
         
-        /* 容器 */
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         
-        /* 表單列 */
         .row { margin-bottom: 20px; }
         .row-flex { display: flex; gap: 10px; }
         label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 1.1rem; }
         
-        /* 輸入框優化 */
         input, select, button { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
         input:focus { border-color: var(--primary); outline: none; }
         
-        /* 日期時間 */
-        .date-input { flex: 2; }
+        /* === 修改處 1：讓日期時間欄位等寬 === */
+        .date-input { flex: 1; }
         .time-input { flex: 1; }
+        /* ================================ */
 
-        /* 地點列 */
         .location-group { display: flex; gap: 8px; }
         .btn-map { background: #eee; color: #333; border: none; width: auto; white-space: nowrap; cursor: pointer; }
         
-        /* 聯絡電話提示 */
         .hint { font-size: 0.85rem; color: #888; margin-top: 4px; }
 
-        /* 送出按鈕 */
         .btn-submit { background: var(--primary); color: white; font-size: 1.2rem; font-weight: bold; border: none; margin-top: 10px; cursor: pointer; }
         .btn-submit:disabled { background: #ccc; }
 
-        /* 模態視窗 (Modal) */
         .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: flex-end; }
         .modal-content { background: white; width: 100%; border-radius: 20px 20px 0 0; padding: 20px; animation: slideUp 0.3s; max-height: 80vh; overflow-y: auto; }
         .tag-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
@@ -57,7 +51,7 @@
     
     <div class="row row-flex">
         <div class="date-input">
-            <label>日期 (月/日)</label>
+            <label>日期</label>
             <input type="date" id="dateData">
         </div>
         <div class="time-input">
@@ -89,7 +83,6 @@
             <h3>常用地點</h3>
             <button class="close-btn" onclick="closeLocationModal()">×</button>
         </div>
-
         <p style="font-weight:bold; color:#666;">我的最愛 (可編輯)</p>
         <div class="tag-group">
             <div class="tag saved" id="favA" onclick="selectLocation(this.innerText)">自家: 花蓮市...</div>
@@ -99,7 +92,6 @@
             <div class="tag saved" id="favB" onclick="selectLocation(this.innerText)">公司: 吉安鄉...</div>
             <button style="width:auto; padding:5px 10px; font-size:0.8rem;" onclick="editFavorite('favB')">✏️ 編輯B</button>
         </div>
-
         <hr>
         <p style="font-weight:bold; color:#666;">花蓮熱門地標</p>
         <div class="tag-group">
@@ -114,15 +106,14 @@
 </div>
 
 <script>
-    // 設定區
+    // 記得確認這兩行是填你的資料
     const LIFF_ID = '2008907691-x4s1XueL'; 
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwODDCmwAggIyan3gxJJazGd3fWR9N2JsBk04OBQfyQ6SPjduhbQIEg_B_GZWH2Uex7/exec'; 
 
-    // 初始化
     window.onload = function() {
         initLiff();
-        loadFavorites(); // 讀取儲存的地址
-        setDefaultDate(); // 設定預設日期為今天
+        loadFavorites();
+        setDefaultDate();
     };
 
     function initLiff() {
@@ -135,20 +126,21 @@
         });
     }
 
+    // === 修改處 2：修正日期時區問題 ===
     function setDefaultDate() {
         const now = new Date();
-        const month = (now.getMonth() + 1).toString().padStart(2, '0');
-        const day = now.getDate().toString().padStart(2, '0');
-        // 日期 input 格式通常為 YYYY-MM-DD，這裡為了顯示方便使用瀏覽器預設
-        document.getElementById('dateData').valueAsDate = now;
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+        document.getElementById('dateData').value = todayStr;
     }
+    // =============================
 
-    // --- 地點選擇與儲存邏輯 ---
     function openLocationModal() { document.getElementById('locationModal').style.display = 'flex'; }
     function closeLocationModal() { document.getElementById('locationModal').style.display = 'none'; }
     
     function selectLocation(text) {
-        // 去除標籤中的 "自家: " 前綴，只填入地址
         let address = text.includes(':') ? text.split(':')[1].trim() : text;
         document.getElementById('locationData').value = address;
         closeLocationModal();
@@ -179,43 +171,35 @@
         });
     }
 
-    // --- 送出預約核心邏輯 ---
     function submitBooking() {
         const date = document.getElementById('dateData').value;
         const time = document.getElementById('timeData').value;
         const location = document.getElementById('locationData').value;
         const phone = document.getElementById('phoneData').value;
 
-        // 1. 基本驗證
         if (!date || !time || !location) {
             Swal.fire('資料不完整', '請填寫日期、時間與地點', 'warning');
             return;
         }
 
-        // 鎖定按鈕避免重複點擊
         const btn = document.getElementById('submitBtn');
         btn.disabled = true;
         btn.innerText = '系統檢查中...';
 
-        // 2. 取得使用者個資
         liff.getProfile().then(profile => {
             const payload = {
                 action: 'book',
                 userId: profile.userId,
                 displayName: profile.displayName,
-                date: date.substring(5), // 只取 MM-DD
+                date: date.substring(5), 
                 time: time,
                 location: location,
                 phone: phone
             };
 
-            // 3. 發送至 GAS
             fetch(GAS_API_URL, {
                 method: 'POST',
-                body: JSON.stringify(payload),
-                // "no-cors" 模式很重要，因為 GAS 會有 CORS 限制，
-                // 但為了讀取回應 (撞單檢查)，我們需要用一些技巧。
-                // 這裡我們直接用標準模式，若遇到 CORS 錯誤，建議使用 redirect: 'follow'
+                body: JSON.stringify(payload)
             })
             .then(response => response.json())
             .then(data => {
@@ -233,9 +217,6 @@
                 }
             })
             .catch(error => {
-                // GAS 若因 CORS 拋錯但其實成功執行，這部分比較複雜。
-                // 在此架構下，建議 GAS 回傳 JSON，前端解析。
-                // 若遇跨域問題，最穩解法是將 HTML 直接放在 GAS 內 (但您要求 GitHub)。
                 console.error(error);
                 btn.disabled = false;
                 btn.innerText = '確認預約';
