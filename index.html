@@ -7,39 +7,75 @@
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        :root { --primary: #06c755; --bg: #f5f5f5; --text: #333; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: var(--bg); padding: 20px; color: var(--text); }
+        :root { --primary: #06c755; --primary-dark: #05a546; --bg: #f5f5f5; --text: #333; --gray-border: #ddd; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: var(--bg); padding: 20px; color: var(--text); -webkit-tap-highlight-color: transparent; }
         
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        h2 { text-align: center; margin-top: 0; color: #111; font-weight: 700; }
+
         .row { margin-bottom: 20px; }
-        .row-flex { display: flex; gap: 10px; }
-        label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 1.1rem; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 1rem; color: #444; }
         
-        input, select, button { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
-        input:focus { border-color: var(--primary); outline: none; }
+        input, select, button { width: 100%; padding: 12px; border: 1px solid var(--gray-border); border-radius: 10px; font-size: 1rem; box-sizing: border-box; transition: all 0.2s; }
+        input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(6, 199, 85, 0.1); }
         
-        /* === 修改處 1：讓日期時間欄位等寬 === */
-        .date-input { flex: 1; }
-        .time-input { flex: 1; }
+        /* === NEW: 日期按鈕選擇器樣式 === */
+        .date-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+        .date-btn {
+            padding: 10px 5px;
+            background: white;
+            border: 1px solid var(--gray-border);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 70px;
+        }
+        .date-btn .day-num { font-size: 1.2rem; font-weight: bold; line-height: 1.2; }
+        .date-btn .day-text { font-size: 0.8rem; color: #666; margin-top: 2px; }
+        
+        /* 選中狀態 */
+        .date-btn.active {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            box-shadow: 0 4px 10px rgba(6, 199, 85, 0.3);
+        }
+        .date-btn.active .day-text { color: rgba(255,255,255,0.9); }
+        
+        /* 隱藏原本的 input，但保留功能邏輯 */
+        #dateData { display: none; }
         /* ================================ */
 
         .location-group { display: flex; gap: 8px; }
-        .btn-map { background: #eee; color: #333; border: none; width: auto; white-space: nowrap; cursor: pointer; }
-        
-        .hint { font-size: 0.85rem; color: #888; margin-top: 4px; }
+        .btn-map { background: #f0f0f0; color: #333; border: none; width: auto; white-space: nowrap; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 4px; padding: 0 15px; }
+        .btn-map:active { background: #e0e0e0; }
 
-        .btn-submit { background: var(--primary); color: white; font-size: 1.2rem; font-weight: bold; border: none; margin-top: 10px; cursor: pointer; }
-        .btn-submit:disabled { background: #ccc; }
+        .hint { font-size: 0.85rem; color: #888; margin-top: 6px; display: flex; align-items: flex-start; gap: 4px; }
 
+        .btn-submit { background: var(--primary); color: white; font-size: 1.2rem; font-weight: bold; border: none; margin-top: 15px; cursor: pointer; padding: 14px; border-radius: 50px; box-shadow: 0 4px 15px rgba(6, 199, 85, 0.3); }
+        .btn-submit:active { transform: scale(0.98); }
+        .btn-submit:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; }
+
+        /* Modal Styles */
         .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: flex-end; }
-        .modal-content { background: white; width: 100%; border-radius: 20px 20px 0 0; padding: 20px; animation: slideUp 0.3s; max-height: 80vh; overflow-y: auto; }
-        .tag-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
-        .tag { padding: 8px 16px; background: #f0f0f0; border-radius: 20px; font-size: 0.95rem; cursor: pointer; border: 1px solid transparent; }
-        .tag.saved { background: #e3f2fd; color: #0d47a1; border-color: #90caf9; }
-        .tag:active { background: #ddd; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .close-btn { font-size: 1.5rem; background: none; border: none; width: auto; padding: 0; }
+        .modal-content { background: white; width: 100%; border-radius: 20px 20px 0 0; padding: 25px 20px; animation: slideUp 0.3s; max-height: 80vh; overflow-y: auto; }
+        .tag-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+        .tag { padding: 8px 16px; background: #f8f9fa; border-radius: 20px; font-size: 0.95rem; cursor: pointer; border: 1px solid #eee; transition: background 0.2s; }
+        .tag.saved { background: #e3f2fd; color: #0d47a1; border-color: #bbdefb; }
+        .tag:active { background: #e0e0e0; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .close-btn { font-size: 1.8rem; background: none; border: none; width: auto; padding: 0 10px; color: #999; }
+        
+        .edit-btn { background: none; border: 1px solid #ddd; padding: 4px 10px; font-size: 0.8rem; border-radius: 12px; margin-left: 5px; color: #666; width: auto; }
 
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     </style>
@@ -47,19 +83,25 @@
 <body>
 
 <div class="container">
-    <h2 style="text-align: center; margin-top: 0;">歡迎預約</h2>
+    <h2>歡迎預約</h2>
     
-    <div class="row row-flex">
-        <div class="date-input">
-            <label>日期</label>
-            <input type="date" id="dateData">
+    <!-- 日期選擇區塊 (UI 更新) -->
+    <div class="row">
+        <label>選擇日期</label>
+        <div class="date-selector" id="dateButtonsContainer">
+            <!-- JavaScript 會在這裡產生 4 個按鈕 -->
         </div>
-        <div class="time-input">
-            <label>時間</label>
-            <input type="time" id="timeData">
-        </div>
+        <!-- 隱藏的 input 用來存放選中的完整日期 YYYY-MM-DD -->
+        <input type="text" id="dateData" readonly>
     </div>
 
+    <!-- 時間選擇 -->
+    <div class="row">
+        <label>時間</label>
+        <input type="time" id="timeData">
+    </div>
+
+    <!-- 地點選擇 -->
     <div class="row">
         <label>上車地點</label>
         <div class="location-group">
@@ -68,54 +110,62 @@
         </div>
     </div>
 
+    <!-- 電話 (選填) -->
     <div class="row">
         <label>聯絡電話 <span style="font-size:0.9rem; font-weight:normal; color:#666;">(選填)</span></label>
         <input type="tel" id="phoneData" placeholder="09xx...">
-        <div class="hint">💡 提示：本人搭車免填，幫親友叫車請填寫對方號碼。</div>
+        <div class="hint">
+            <span>💡</span>
+            <span>本人搭車免填，幫親友叫車請填寫對方號碼。</span>
+        </div>
     </div>
 
     <button id="submitBtn" class="btn-submit" onclick="submitBooking()">確認預約</button>
 </div>
 
+<!-- 地點選擇 Modal -->
 <div id="locationModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>常用地點</h3>
+            <h3 style="margin:0;">常用地點</h3>
             <button class="close-btn" onclick="closeLocationModal()">×</button>
         </div>
-        <p style="font-weight:bold; color:#666;">我的最愛 (可編輯)</p>
-        <div class="tag-group">
-            <div class="tag saved" id="favA" onclick="selectLocation(this.innerText)">自家: 花蓮市...</div>
-            <button style="width:auto; padding:5px 10px; font-size:0.8rem;" onclick="editFavorite('favA')">✏️ 編輯A</button>
+        
+        <p style="font-weight:bold; color:#666; margin-bottom:10px;">我的最愛</p>
+        <div style="display:flex; align-items:center; margin-bottom:10px;">
+            <div class="tag saved" id="favA" onclick="selectLocation(this.innerText)" style="flex:1; text-align:center;">自家: (點此編輯)</div>
+            <button class="edit-btn" onclick="editFavorite('favA')">✏️</button>
         </div>
-        <div class="tag-group">
-            <div class="tag saved" id="favB" onclick="selectLocation(this.innerText)">公司: 吉安鄉...</div>
-            <button style="width:auto; padding:5px 10px; font-size:0.8rem;" onclick="editFavorite('favB')">✏️ 編輯B</button>
+        <div style="display:flex; align-items:center; margin-bottom:15px;">
+            <div class="tag saved" id="favB" onclick="selectLocation(this.innerText)" style="flex:1; text-align:center;">公司: (點此編輯)</div>
+            <button class="edit-btn" onclick="editFavorite('favB')">✏️</button>
         </div>
-        <hr>
-        <p style="font-weight:bold; color:#666;">花蓮熱門地標</p>
+        
+        <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+        
+        <p style="font-weight:bold; color:#666; margin-bottom:10px;">熱門地標</p>
         <div class="tag-group">
-            <div class="tag" onclick="selectLocation('花蓮前站')">花蓮前站</div>
-            <div class="tag" onclick="selectLocation('花蓮後站')">花蓮後站</div>
-            <div class="tag" onclick="selectLocation('慈濟門診')">慈濟門診</div>
-            <div class="tag" onclick="selectLocation('慈濟急診')">慈濟急診</div>
-            <div class="tag" onclick="selectLocation('門諾門診')">門諾門診</div>
-            <div class="tag" onclick="selectLocation('門諾急診')">門諾急診</div>
-            <div class="tag" onclick="selectLocation('花蓮醫院')">花蓮醫院</div>
-            <div class="tag" onclick="selectLocation('805醫院')">805醫院</div>
+            <div class="tag" onclick="selectLocation('花蓮火車站(前站)')">花蓮前站</div>
+            <div class="tag" onclick="selectLocation('花蓮火車站(後站)')">花蓮後站</div>
+            <div class="tag" onclick="selectLocation('慈濟醫院(門診)')">慈濟門診</div>
+            <div class="tag" onclick="selectLocation('慈濟醫院(急診)')">慈濟急診</div>
+            <div class="tag" onclick="selectLocation('門諾醫院(門診)')">門諾門診</div>
+            <div class="tag" onclick="selectLocation('門諾醫院(急診)')">門諾急診</div>
+            <div class="tag" onclick="selectLocation('部立花蓮醫院')">花蓮醫院</div>
+            <div class="tag" onclick="selectLocation('國軍805醫院')">805醫院</div>
         </div>
     </div>
 </div>
 
 <script>
-    // 記得確認這兩行是填你的資料
+    // 你的設定檔
     const LIFF_ID = '2008907691-x4s1XueL'; 
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwODDCmwAggIyan3gxJJazGd3fWR9N2JsBk04OBQfyQ6SPjduhbQIEg_B_GZWH2Uex7/exec'; 
 
     window.onload = function() {
         initLiff();
         loadFavorites();
-        setDefaultDate();
+        initDateButtons(); // 初始化日期按鈕
     };
 
     function initLiff() {
@@ -128,22 +178,62 @@
         });
     }
 
-    // === 修改處 2：修正日期時區問題 ===
-    function setDefaultDate() {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const todayStr = `${year}-${month}-${day}`;
-        document.getElementById('dateData').value = todayStr;
+    // === NEW: 產生 4 天日期按鈕邏輯 ===
+    function initDateButtons() {
+        const container = document.getElementById('dateButtonsContainer');
+        const hiddenInput = document.getElementById('dateData');
+        const weekDays = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+        
+        container.innerHTML = ''; // 清空
+        
+        for (let i = 0; i < 4; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() + i);
+            
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const date = String(d.getDate()).padStart(2, '0');
+            const dayOfWeek = d.getDay();
+            
+            const fullDateStr = `${year}-${month}-${date}`;
+            
+            // 決定顯示文字 (今天/明天/後天/週X)
+            let labelText = weekDays[dayOfWeek];
+            if (i === 1) labelText = '明天';
+            if (i === 2) labelText = '後天';
+            // 如果需要 "今天"，可以在 i===0 時設定，但通常顯示週幾比較清楚
+            
+            const btn = document.createElement('div');
+            btn.className = 'date-btn';
+            if (i === 0) btn.classList.add('active'); // 預設選中第一天
+            btn.innerHTML = `<span class="day-num">${parseInt(date)}號</span><span class="day-text">${labelText}</span>`;
+            
+            // 點擊事件
+            btn.onclick = function() {
+                // 移除所有 active
+                document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+                // 自己加上 active
+                this.classList.add('active');
+                // 更新隱藏 input 值
+                hiddenInput.value = fullDateStr;
+            };
+
+            container.appendChild(btn);
+
+            // 初始化第一天的值
+            if (i === 0) {
+                hiddenInput.value = fullDateStr;
+            }
+        }
     }
-    // =============================
+    // ===================================
 
     function openLocationModal() { document.getElementById('locationModal').style.display = 'flex'; }
     function closeLocationModal() { document.getElementById('locationModal').style.display = 'none'; }
     
     function selectLocation(text) {
         let address = text.includes(':') ? text.split(':')[1].trim() : text;
+        if(address.includes('(點此編輯)')) address = ""; 
         document.getElementById('locationData').value = address;
         closeLocationModal();
     }
@@ -156,52 +246,74 @@
     }
 
     function editFavorite(key) {
-        const currentVal = document.getElementById(key).innerText;
+        const currentText = document.getElementById(key).innerText;
+        // 簡單處理，只取地址部分
+        let currentVal = currentText.includes(':') ? currentText.split(':')[1].trim() : '';
+        if(currentVal.includes('(點此編輯)')) currentVal = '';
+
         Swal.fire({
             title: '編輯常用地址',
             input: 'text',
             inputValue: currentVal,
+            placeholder: '例如：花蓮市中山路100號',
             showCancelButton: true,
             confirmButtonText: '儲存',
-            cancelButtonText: '取消'
+            cancelButtonText: '取消',
+            confirmButtonColor: '#06c755'
         }).then((result) => {
             if (result.isConfirmed && result.value) {
+                const prefix = key === 'favA' ? '自家: ' : '公司: ';
+                const newVal = prefix + result.value;
                 const storageKey = key === 'favA' ? 'taxi_fav_A' : 'taxi_fav_B';
-                localStorage.setItem(storageKey, result.value);
-                document.getElementById(key).innerText = result.value;
+                
+                localStorage.setItem(storageKey, newVal);
+                document.getElementById(key).innerText = newVal;
             }
         });
     }
 
     function submitBooking() {
-        const date = document.getElementById('dateData').value;
+        const date = document.getElementById('dateData').value; // 這裡現在會拿到完整的 YYYY-MM-DD
         const time = document.getElementById('timeData').value;
         const location = document.getElementById('locationData').value;
         const phone = document.getElementById('phoneData').value;
 
         if (!date || !time || !location) {
-            Swal.fire('資料不完整', '請填寫日期、時間與地點', 'warning');
+            Swal.fire({
+                icon: 'warning',
+                title: '資料不完整',
+                text: '請確認日期、時間與上車地點',
+                confirmButtonColor: '#06c755'
+            });
             return;
         }
 
         const btn = document.getElementById('submitBtn');
         btn.disabled = true;
-        btn.innerText = '系統檢查中...';
+        btn.innerText = '系統處理中...';
 
         liff.getProfile().then(profile => {
             const payload = {
                 action: 'book',
                 userId: profile.userId,
                 displayName: profile.displayName,
-                date: date.substring(5), 
+                // === BUG FIX 重點 ===
+                // 原本是 date: date.substring(5) -> 這會切掉年份，導致後端判斷錯誤
+                // 現在直接傳送完整日期 YYYY-MM-DD
+                date: date, 
+                // ==================
                 time: time,
                 location: location,
                 phone: phone
             };
 
+            // 使用 no-cors 模式呼叫可能會拿不到回應 JSON，
+            // 但標準 GAS Web App 只要設定正確通常可以跨域。
+            // 這裡維持原本邏輯
             fetch(GAS_API_URL, {
                 method: 'POST',
                 body: JSON.stringify(payload)
+                // mode: 'no-cors' // 如果遇到 CORS 錯誤可嘗試開啟，但會無法讀取 response
             })
             .then(response => response.json())
             .then(data => {
@@ -209,28 +321,42 @@
                 btn.innerText = '確認預約';
 
                 if (data.status === 'success') {
-                    Swal.fire('預約成功', '司機已收到通知！', 'success').then(() => {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '預約成功',
+                        text: '司機已收到通知！',
+                        confirmButtonColor: '#06c755'
+                    }).then(() => {
                         liff.closeWindow();
                     });
                 } else if (data.status === 'conflict') {
                     Swal.fire('時段衝突', data.message, 'error');
                 } else {
-                    Swal.fire('錯誤', data.message, 'error');
+                    Swal.fire('錯誤', data.message || '發生未知錯誤', 'error');
                 }
             })
             .catch(error => {
                 console.error(error);
                 btn.disabled = false;
                 btn.innerText = '確認預約';
-                Swal.fire('連線錯誤', '請檢查網路或稍後再試', 'error');
+                
+                // 很多時候 GAS 成功寫入但回傳格式導致 fetch error，這裡做一個保險提示
+                Swal.fire({
+                    icon: 'error',
+                    title: '連線異常',
+                    text: '請檢查網路。若確定已送出，請勿重複點擊。',
+                    confirmButtonColor: '#d33'
+                });
             });
 
         }).catch(err => {
             console.error(err);
-            Swal.fire('LIFF錯誤', '無法取得使用者資料', 'error');
+            Swal.fire('LIFF錯誤', '無法取得使用者資料，請在 LINE 內開啟', 'error');
+            btn.disabled = false;
         });
     }
 </script>
 
 </body>
 </html>
+
